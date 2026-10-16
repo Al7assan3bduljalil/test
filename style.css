@@ -235,3 +235,115 @@ dialog h2 { margin-top: 0; }
   .sidebar.open { transform: translateX(0); }
   main { padding: 16px; }
 }
+
+/* ===== الأجهزة الذكية ===== */
+.small { font-size: .85rem; }
+.room-title { margin: 20px 0 10px; }
+.device-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 12px;
+}
+.device-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: border-color .2s, background .2s;
+}
+.device-card.on { border-color: var(--primary); background: linear-gradient(var(--primary-soft), var(--card) 70%); }
+.device-top { display: flex; justify-content: space-between; align-items: center; }
+.device-icon { font-size: 1.8rem; }
+.device-name { font-weight: 600; }
+.device-status { font-size: .9rem; min-height: 1.3em; }
+.device-foot { display: flex; justify-content: space-between; align-items: center; margin-top: auto; }
+.slider { display: flex; flex-direction: column; gap: 2px; font-size: .85rem; }
+.slider input { width: 100%; padding: 0; accent-color: var(--primary); }
+
+.switch { position: relative; width: 44px; height: 24px; flex-shrink: 0; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.switch span {
+  position: absolute;
+  inset: 0;
+  background: var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background .2s;
+}
+.switch span::before {
+  content: "";
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  top: 3px;
+  right: 3px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform .2s;
+}
+.switch input:checked + span { background: var(--success); }
+.switch input:checked + span::before { transform: translateX(-20px); }
+.switch input:focus-visible + span { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+/* ===== الطقس ===== */
+.weather-now { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; }
+.weather-icon { font-size: 3.2rem; }
+.weather-temp { font-size: 2.4rem; font-weight: 700; }
+.weather-meta { flex: 1; min-width: 160px; }
+.forecast { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-top: 14px; text-align: center; }
+.forecast-day { background: var(--bg); border-radius: 8px; padding: 8px 2px; font-size: .85rem; }
+.forecast-icon { font-size: 1.5rem; }
+.alert.danger { color: var(--danger); }
+.alert.warn { color: var(--warning); }
+.log li { font-size: .9rem; }
+
+/* ===== الكاميرا ===== */
+.cam-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+.cam-view {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  max-height: 70vh;
+  width: 100%;
+  background: #000;
+  border-radius: 10px;
+  overflow: hidden;
+  color: #fff;
+}
+.cam-view video, .cam-view img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.cam-view.night video, .cam-view.night img { filter: grayscale(1) brightness(1.6) contrast(1.2) sepia(.3) hue-rotate(60deg); }
+.cam-placeholder {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 20px;
+  text-align: center;
+  color: #cbd5e1;
+}
+.cam-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  padding: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-content: space-between;
+  font-size: .85rem;
+}
+.cam-overlay > span { background: rgba(0, 0, 0, .55); padding: 3px 8px; border-radius: 6px; }
+.cam-motion { background: var(--danger) !important; font-weight: 700; animation: blink 1s infinite; }
+@keyframes blink { 50% { opacity: .5; } }
+.cam-controls { margin-top: 10px; }
+.cam-controls input[type=range] { vertical-align: middle; padding: 0; width: 80px; }
+.cam-tile h3 { margin: 0; }
+
+@media (max-width: 760px) {
+  .cam-grid { grid-template-columns: 1fr; }
+  .forecast { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+}

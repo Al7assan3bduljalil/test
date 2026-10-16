@@ -4,13 +4,16 @@
 const STORAGE_KEY = "homeManager.v1";
 
 const defaultState = () => ({
-  settings: { currency: "ر.س", monthlyBudget: 5000 },
+  settings: { currency: "ر.س", monthlyBudget: 5000, city: "الرياض", kwhPrice: 0.18 },
   members: [],
   tasks: [],
   shopping: [],
   expenses: [],
   bills: [],
   inventory: [],
+  devices: [],
+  cameras: [],
+  deviceLog: [],
 });
 
 let state = load();
@@ -18,11 +21,17 @@ let state = load();
 function load() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return { ...defaultState(), ...JSON.parse(raw) };
+    if (raw) return mergeState(JSON.parse(raw));
   } catch (e) {
     console.warn("تعذر قراءة البيانات المحفوظة", e);
   }
   return defaultState();
+}
+
+// يدمج البيانات المحفوظة مع القيم الافتراضية حتى لا تنقص الحقول المضافة حديثًا
+function mergeState(data) {
+  const base = defaultState();
+  return { ...base, ...data, settings: { ...base.settings, ...data.settings } };
 }
 
 function save() {
@@ -191,7 +200,9 @@ $("#entityForm").addEventListener("submit", (e) => {
     const idx = state[entity].findIndex((x) => x.id === id);
     state[entity][idx] = { ...state[entity][idx], ...data };
   } else {
-    state[entity].push({ id: uid(), createdAt: today(), ...data });
+    const item = { id: uid(), createdAt: today(), ...data };
+    ENTITIES[entity].onCreate?.(item);
+    state[entity].push(item);
   }
   save();
   $("#formDialog").close();
@@ -325,6 +336,7 @@ const views = {
         <div class="card ${overdue ? "danger" : ""}"><div class="label">فواتير غير مدفوعة</div><div class="value">${unpaidBills().length}</div></div>
         <div class="card ${low.length ? "warn" : ""}"><div class="label">أغراض قاربت على النفاد</div><div class="value">${low.length}</div></div>
         <div class="card"><div class="label">أصناف في قائمة التسوق</div><div class="value">${state.shopping.filter((s) => !s.bought).length}</div></div>
+        ${typeof dashboardSmartCards === "function" ? dashboardSmartCards() : ""}
       </div>
 
       <div class="panel">
@@ -448,6 +460,8 @@ const views = {
         <form id="settingsForm">
           <div class="field"><label>العملة</label><input name="currency" value="${esc(state.settings.currency)}"></div>
           <div class="field"><label>الميزانية الشهرية</label><input name="monthlyBudget" type="number" min="0" step="any" value="${esc(state.settings.monthlyBudget)}"></div>
+          <div class="field"><label>المدينة (للطقس)</label><input name="city" value="${esc(state.settings.city)}"></div>
+          <div class="field"><label>سعر الكيلوواط ساعة</label><input name="kwhPrice" type="number" min="0" step="any" value="${esc(state.settings.kwhPrice)}"></div>
           <button class="btn primary">حفظ الإعدادات</button>
         </form>
       </div>
@@ -476,8 +490,12 @@ function categoryBreakdown(expenses) {
     </li>`).join("")}</ul>`;
 }
 
+// دوال تُستدعى بعد كل رسم (مثل إعادة ربط بث الكاميرا)
+const afterRenderHooks = [];
+
 function render() {
   $("#main").innerHTML = views[currentView]();
+  afterRenderHooks.forEach((fn) => fn());
   document.querySelectorAll("#sidebar button").forEach((b) => b.classList.toggle("active", b.dataset.view === currentView));
 }
 
@@ -529,6 +547,10 @@ $("#main").addEventListener("submit", (e) => {
   const f = e.target.elements;
   state.settings.currency = f.currency.value.trim() || "ر.س";
   state.settings.monthlyBudget = Number(f.monthlyBudget.value) || 0;
+  const city = f.city.value.trim() || "الرياض";
+  if (city !== state.settings.city) weatherCache = null;
+  state.settings.city = city;
+  state.settings.kwhPrice = Number(f.kwhPrice.value) || 0;
   save();
   toast("تم حفظ الإعدادات");
 });
@@ -540,7 +562,7 @@ $("#main").addEventListener("change", (e) => {
     try {
       const data = JSON.parse(reader.result);
       if (typeof data !== "object" || !data) throw new Error();
-      state = { ...defaultState(), ...data };
+      state = mergeState(data);
       save();
       render();
       toast("تم استيراد البيانات");
@@ -610,11 +632,10 @@ function loadDemo() {
       { id: uid(), name: "زبادي", qty: 4, minQty: 2, unit: "علبة", location: "الثلاجة", expiry: d(2) },
       { id: uid(), name: "مناديل", qty: 0, minQty: 2, unit: "علبة", location: "المخزن", expiry: "" },
     ],
+    ...demoSmartData(),
   };
   save();
   currentView = "dashboard";
   render();
   toast("تم تحميل البيانات التجريبية");
 }
-
-render();
