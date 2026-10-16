@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>نظام إدارة المنزل</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1>🏠 نظام إدارة المنزل</h1>
+    <button id="menuToggle" class="icon-btn" aria-label="القائمة">☰</button>
+  </header>
+
+  <div class="layout">
+    <nav id="sidebar" class="sidebar">
+      <button data-view="dashboard" class="active">📊 لوحة التحكم</button>
+      <button data-view="tasks">✅ المهام المنزلية</button>
+      <button data-view="shopping">🛒 قائمة التسوق</button>
+      <button data-view="expenses">💰 المصاريف والميزانية</button>
+      <button data-view="bills">🧾 الفواتير</button>
+      <button data-view="inventory">📦 المخزون</button>
+      <button data-view="members">👨‍👩‍👧 أفراد الأسرة</button>
+      <button data-view="settings">⚙️ الإعدادات</button>
+    </nav>
+
+    <main id="main"></main>
+  </div>
+
+  <dialog id="formDialog">
+    <form id="entityForm" method="dialog">
+      <h2 id="formTitle"></h2>
+      <div id="formFields"></div>
+      <div class="form-actions">
+        <button type="submit" class="btn primary">حفظ</button>
+        <button type="button" class="btn" id="cancelForm">إلغاء</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
