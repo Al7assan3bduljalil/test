@@ -36,7 +36,8 @@ ENTITIES.cameras = {
   fields: [
     { name: "name", label: "اسم الكاميرا", type: "text", required: true, default: "غرفة الأطفال" },
     { name: "room", label: "الغرفة (لربطها بحساس الحرارة)", type: "text", default: "غرفة الأطفال" },
-    { name: "source", label: "المصدر", type: "select", options: () => [["device", "كاميرا هذا الجهاز"], ["url", "كاميرا شبكة (رابط بث)"]], default: "device" },
+    { name: "source", label: "المصدر", type: "select", options: () => [["ha", "كاميرا من Home Assistant"], ["device", "كاميرا هذا الجهاز"], ["url", "كاميرا شبكة (رابط بث)"]], default: "device" },
+    { name: "entity", label: "كاميرا Home Assistant", type: "select", options: () => [["", haConnected() ? "— اختر —" : "— Home Assistant غير متصل —"], ...haCameras().map((e) => [e.entity_id, haName(e)])] },
     { name: "url", label: "رابط البث أو الصورة (لكاميرا الشبكة)", type: "url" },
     { name: "refresh", label: "طريقة العرض (لكاميرا الشبكة)", type: "select", options: () => [["0", "بث مباشر MJPEG"], ["2", "صورة تتحدث كل ثانيتين"], ["5", "صورة تتحدث كل 5 ثوانٍ"]], default: "0" },
   ],
@@ -51,7 +52,7 @@ function devicePower(d) {
 }
 
 const totalPower = () => state.devices.reduce((s, d) => s + devicePower(d), 0);
-const monthlyCost = () => (totalPower() / 1000) * 24 * 30 * (Number(state.settings.kwhPrice) || 0);
+const monthlyCost = (watts = totalPower()) => (watts / 1000) * 24 * 30 * (Number(state.settings.kwhPrice) || 0);
 
 function deviceStatus(d) {
   const t = devType(d);
@@ -116,6 +117,7 @@ const SCENES = {
 function applyScene(key) {
   const scene = SCENES[key];
   state.devices.forEach(scene.apply);
+  haApplyScene(key);
   logDevice(`تفعيل مشهد: ${scene.label}`);
   save();
   render();
@@ -165,13 +167,15 @@ function groupByRoom(items) {
 
 views.devices = function () {
   const scenes = Object.entries(SCENES).map(([k, s]) => `<button class="btn" data-scene="${k}">${s.label}</button>`).join("");
-  const body = state.devices.length
+  let body = state.devices.length
     ? groupByRoom(state.devices).map(([room, list]) => `<h3 class="room-title">${esc(room)}</h3><div class="device-grid">${list.map(deviceCard).join("")}</div>`).join("")
     : `<div class="panel empty">لا توجد أجهزة بعد. أضف جهازًا أو حمّل البيانات التجريبية من الإعدادات.</div>`;
+  if (haConnected()) body = state.devices.length ? `<h3 class="room-title">أجهزة تجريبية (محاكاة)</h3>${body}` : "";
   return header("الأجهزة الذكية", "devices") + `
     <div class="panel"><h3>المشاهد السريعة</h3><div class="toolbar">${scenes}</div></div>
+    ${haDevicesSection()}
     ${body}
-    <p class="muted small">ملاحظة: التحكم هنا محاكاة. للتحكم بأجهزة حقيقية يلزم ربط التطبيق بمنصة منزل ذكي مثل Home Assistant.</p>`;
+    ${state.devices.length ? `<p class="muted small">ملاحظة: الأجهزة التجريبية محاكاة ولا تتحكم بأجهزة حقيقية.</p>` : ""}`;
 };
 
 // ===== الطقس (Open-Meteo مجاني دون مفتاح) =====
@@ -257,16 +261,21 @@ function smartAlerts() {
 
 views.monitor = function () {
   loadWeather();
+  const hs = haSummary();
   const on = state.devices.filter((d) => d.on && !["lock", "sensor"].includes(d.type));
+  const controllable = state.devices.filter((d) => !["lock", "sensor"].includes(d.type)).length + hs.controllable.length;
   const locks = state.devices.filter((d) => d.type === "lock");
+  const openLocks = locks.filter((l) => !l.on).length + hs.openLocks.length;
+  const lockCount = locks.length + (hs.locks?.length || 0);
   const sensors = state.devices.filter((d) => d.type === "sensor");
-  const alerts = smartAlerts();
+  const power = totalPower() + hs.power;
+  const alerts = [...hs.alerts, ...smartAlerts()];
   return `<div class="view-header"><h2>المراقبة والطقس</h2></div>
     <div class="cards">
-      <div class="card"><div class="label">أجهزة تعمل الآن</div><div class="value">${on.length} / ${state.devices.filter((d) => !["lock", "sensor"].includes(d.type)).length}</div></div>
-      <div class="card"><div class="label">الاستهلاك الحالي</div><div class="value">${Math.round(totalPower())} واط</div></div>
-      <div class="card"><div class="label">التكلفة الشهرية التقديرية</div><div class="value">${money(monthlyCost())}</div></div>
-      <div class="card ${locks.some((l) => !l.on) ? "danger" : "ok"}"><div class="label">الأقفال</div><div class="value">${locks.length ? (locks.every((l) => l.on) ? "كلها مقفلة" : `${locks.filter((l) => !l.on).length} مفتوح`) : "—"}</div></div>
+      <div class="card"><div class="label">أجهزة تعمل الآن</div><div class="value">${on.length + hs.on.length} / ${controllable}</div></div>
+      <div class="card"><div class="label">الاستهلاك الحالي</div><div class="value">${Math.round(power)} واط</div></div>
+      <div class="card"><div class="label">التكلفة الشهرية التقديرية</div><div class="value">${money(monthlyCost(power))}</div></div>
+      <div class="card ${openLocks ? "danger" : "ok"}"><div class="label">الأقفال</div><div class="value">${lockCount ? (openLocks ? `${openLocks} مفتوح` : "كلها مقفلة") : "—"}</div></div>
     </div>
     <div class="grid-2">
       ${weatherPanel()}
@@ -274,10 +283,16 @@ views.monitor = function () {
         ${alerts.length ? `<ul class="list">${alerts.map(([cls, text]) => `<li class="alert ${cls}">${esc(text)}</li>`).join("")}</ul>` : `<p class="muted">لا توجد تنبيهات ✅</p>`}
       </div>
       <div class="panel"><h3>حساسات الغرف</h3>
-        ${sensors.length ? `<ul class="list">${sensors.map((d) => `<li><span>${esc(d.room)}</span>${deviceStatus(d)}</li>`).join("")}</ul>` : `<p class="muted">لا توجد حساسات</p>`}
+        ${sensors.length || hs.sensors.length ? `<ul class="list">
+          ${hs.sensors.map((e) => `<li><span>${haIcon(e)} ${esc(haName(e))}</span><bdi>${esc(haStateLabel(e))}</bdi></li>`).join("")}
+          ${sensors.map((d) => `<li><span>${esc(d.room)} <span class="muted">(تجريبي)</span></span>${deviceStatus(d)}</li>`).join("")}
+        </ul>` : `<p class="muted">لا توجد حساسات</p>`}
       </div>
       <div class="panel"><h3>الأجهزة العاملة</h3>
-        ${on.length ? `<ul class="list">${on.map((d) => `<li><span>${devType(d).icon} ${esc(d.name)} <span class="muted">· ${esc(d.room)}</span></span><span class="muted">${Math.round(devicePower(d))} واط</span></li>`).join("")}</ul>` : `<p class="muted">كل الأجهزة مطفأة</p>`}
+        ${on.length || hs.on.length ? `<ul class="list">
+          ${hs.on.map((e) => `<li><span>${haIcon(e)} ${esc(haName(e))}</span><span class="badge ha">HA</span></li>`).join("")}
+          ${on.map((d) => `<li><span>${devType(d).icon} ${esc(d.name)} <span class="muted">· ${esc(d.room)}</span></span><span class="muted">${Math.round(devicePower(d))} واط</span></li>`).join("")}
+        </ul>` : `<p class="muted">كل الأجهزة مطفأة</p>`}
       </div>
       <div class="panel"><h3>الكاميرات</h3>
         ${state.cameras.length ? `<ul class="list">${state.cameras.map((c) => `<li><span>📹 ${esc(c.name)}</span>${cameraBadge(c)}</li>`).join("")}</ul><button class="btn sm" data-goto="babycam">فتح كاميرا الأطفال</button>` : `<p class="muted">لا توجد كاميرات</p>`}
@@ -290,7 +305,7 @@ views.monitor = function () {
 
 function dashboardSmartCards() {
   loadWeather();
-  const on = state.devices.filter((d) => d.on && !["lock", "sensor"].includes(d.type)).length;
+  const on = state.devices.filter((d) => d.on && !["lock", "sensor"].includes(d.type)).length + haSummary().on.length;
   const w = weatherCache ? `${weatherInfo(weatherCache.current.weather_code)[0]} ${Math.round(weatherCache.current.temperature_2m)}°` : "—";
   return `<div class="card"><div class="label">الطقس${weatherCache ? " في " + esc(weatherCache.place) : ""}</div><div class="value">${w}</div></div>
     <div class="card"><div class="label">أجهزة ذكية تعمل</div><div class="value">${on}</div></div>`;
@@ -305,6 +320,7 @@ const motionLog = [];
 const ui = (id) => (camUi[id] ??= { night: false, motion: false, sensitivity: 3, lastMotion: 0 });
 
 function cameraBadge(c) {
+  if (c.source === "ha") return haConnected() && ha.states[c.entity] ? `<span class="badge ok">● HA</span>` : `<span class="badge">غير متصلة</span>`;
   if (c.source === "device") return camStream ? `<span class="badge ok">● مباشر</span>` : `<span class="badge">متوقفة</span>`;
   return c.url ? `<span class="badge ok">● شبكة</span>` : `<span class="badge">بلا رابط</span>`;
 }
@@ -342,6 +358,11 @@ function cameraTile(c) {
     media = camStream
       ? `<video data-cam-video="${c.id}" autoplay playsinline muted></video>`
       : `<div class="cam-placeholder"><p>${esc(camError) || "الكاميرا متوقفة"}</p><button class="btn primary" data-cam-start>▶️ تشغيل الكاميرا</button></div>`;
+  } else if (c.source === "ha") {
+    const src = haConnected() ? haCameraSrc(c.entity) : "";
+    media = src
+      ? `<img data-cam-ha="${c.id}" src="${esc(src)}" alt="${esc(c.name)}">`
+      : `<div class="cam-placeholder"><p>${!haConnected() ? "Home Assistant غير متصل" : !c.entity ? "اختر كاميرا Home Assistant من زر التعديل ✏️" : "الكاميرا غير موجودة في Home Assistant"}</p></div>`;
   } else if (c.url) {
     media = `<img data-cam-img="${c.id}" src="${esc(camUrl(c))}" alt="${esc(c.name)}" data-error-msg="تعذر تحميل البث. تأكد من الرابط وأن الجهاز على نفس الشبكة.">`;
   } else {
@@ -389,6 +410,11 @@ afterRenderHooks.push(() => {
   document.querySelectorAll("[data-cam-img]").forEach((img) => {
     img.onerror = () => {
       img.replaceWith(Object.assign(document.createElement("div"), { className: "cam-placeholder", textContent: img.dataset.errorMsg }));
+    };
+  });
+  document.querySelectorAll("[data-cam-ha]").forEach((img) => {
+    img.onerror = () => {
+      img.replaceWith(Object.assign(document.createElement("div"), { className: "cam-placeholder", innerHTML: `<p>تعذر تحميل بث الكاميرا</p><button class="btn" data-goto="babycam">إعادة المحاولة</button>` }));
     };
   });
   manageMotion();
@@ -519,5 +545,3 @@ function demoSmartData() {
     deviceLog: [],
   };
 }
-
-render();

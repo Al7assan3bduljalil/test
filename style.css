@@ -347,3 +347,13 @@ dialog h2 { margin-top: 0; }
   .cam-grid { grid-template-columns: 1fr; }
   .forecast { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 }
+
+/* ===== Home Assistant ===== */
+.topbar h1 { flex: 1; }
+.ha-badge { font-size: .8rem; padding: 3px 10px; border-radius: 999px; background: rgba(255, 255, 255, .2); margin-inline-end: 10px; }
+.ha-badge.connected { background: #16a34a; }
+.ha-badge.error { background: #dc2626; }
+.badge.ha { background: var(--primary-soft); color: var(--primary); }
+.ha-panel { border-color: var(--primary); }
+.device-card.offline { opacity: .55; }
+details summary { cursor: pointer; color: var(--primary); }
