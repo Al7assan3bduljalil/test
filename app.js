@@ -3,8 +3,13 @@
 // ===== التخزين =====
 const STORAGE_KEY = "homeManager.v1";
 
+const CURRENCIES = {
+  LYD: { label: "دينار ليبي (د.ل)", symbol: "د.ل", decimals: 3 },
+  USD: { label: "دولار أمريكي ($)", symbol: "$", decimals: 2 },
+};
+
 const defaultState = () => ({
-  settings: { currency: "ر.س", monthlyBudget: 5000, city: "الرياض", kwhPrice: 0.18 },
+  settings: { currency: "LYD", monthlyBudget: 5000, city: "طرابلس", kwhPrice: 0.18 },
   members: [],
   tasks: [],
   shopping: [],
@@ -31,7 +36,9 @@ function load() {
 // يدمج البيانات المحفوظة مع القيم الافتراضية حتى لا تنقص الحقول المضافة حديثًا
 function mergeState(data) {
   const base = defaultState();
-  return { ...base, ...data, settings: { ...base.settings, ...data.settings } };
+  const merged = { ...base, ...data, settings: { ...base.settings, ...data.settings } };
+  if (!CURRENCIES[merged.settings.currency]) merged.settings.currency = base.settings.currency;
+  return merged;
 }
 
 function save() {
@@ -58,7 +65,8 @@ function esc(value) {
 
 function money(n) {
   const num = Number(n) || 0;
-  return `${num.toLocaleString("ar-EG", { maximumFractionDigits: 2 })} ${esc(state.settings.currency)}`;
+  const cur = CURRENCIES[state.settings.currency] || CURRENCIES.LYD;
+  return `${num.toLocaleString("ar-EG", { maximumFractionDigits: cur.decimals })} ${cur.symbol}`;
 }
 
 function daysUntil(dateStr) {
@@ -458,7 +466,9 @@ const views = {
       <div class="panel">
         <h3>عام</h3>
         <form id="settingsForm">
-          <div class="field"><label>العملة</label><input name="currency" value="${esc(state.settings.currency)}"></div>
+          <div class="field"><label>العملة</label><select name="currency">
+            ${Object.entries(CURRENCIES).map(([code, c]) => `<option value="${code}" ${state.settings.currency === code ? "selected" : ""}>${c.label}</option>`).join("")}
+          </select></div>
           <div class="field"><label>الميزانية الشهرية</label><input name="monthlyBudget" type="number" min="0" step="any" value="${esc(state.settings.monthlyBudget)}"></div>
           <div class="field"><label>المدينة (للطقس)</label><input name="city" value="${esc(state.settings.city)}"></div>
           <div class="field"><label>سعر الكيلوواط ساعة</label><input name="kwhPrice" type="number" min="0" step="any" value="${esc(state.settings.kwhPrice)}"></div>
@@ -545,7 +555,7 @@ $("#main").addEventListener("submit", (e) => {
   if (e.target.id !== "settingsForm") return;
   e.preventDefault();
   const f = e.target.elements;
-  state.settings.currency = f.currency.value.trim() || "ر.س";
+  state.settings.currency = CURRENCIES[f.currency.value] ? f.currency.value : "LYD";
   state.settings.monthlyBudget = Number(f.monthlyBudget.value) || 0;
   const city = f.city.value.trim() || "الرياض";
   if (city !== state.settings.city) weatherCache = null;
