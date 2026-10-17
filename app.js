@@ -322,7 +322,7 @@ function table(cols, rows, rowClass = () => "") {
   if (!rows.length) return `<div class="panel empty">لا توجد بيانات بعد</div>`;
   return `<div class="table-wrap panel" style="padding:0"><table>
     <thead><tr>${cols.map((c) => `<th>${c.label}</th>`).join("")}</tr></thead>
-    <tbody>${rows.map((r) => `<tr class="${rowClass(r)}">${cols.map((c) => `<td class="${c.cls || ""}">${c.render(r)}</td>`).join("")}</tr>`).join("")}</tbody>
+    <tbody>${rows.map((r) => `<tr class="${rowClass(r)}">${cols.map((c) => `<td class="${c.cls || ""}" data-label="${c.label}">${c.render(r)}</td>`).join("")}</tr>`).join("")}</tbody>
   </table></div>`;
 }
 

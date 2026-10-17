@@ -467,3 +467,8 @@ $("#main").addEventListener("submit", (e) => {
 
 haConnect();
 render();
+
+// تثبيت التطبيق على الهاتف والعمل دون إنترنت (يتطلب https أو localhost)
+if ("serviceWorker" in navigator && window.isSecureContext && location.protocol !== "file:") {
+  navigator.serviceWorker.register("sw.js").catch(() => {});
+}
