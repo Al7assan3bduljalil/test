@@ -42,13 +42,14 @@ description: Develop, fix, test, and deploy this repo's Arabic home-management P
 ## التحقق قبل كل commit
 ```bash
 node --check app.js smart.js ha.js sw.js
-python3 -m http.server 8765 &   # في جذر المستودع
-node .claude/skills/home-assistant-app/scripts/smoke-test.js http://localhost:8765
+# في جذر المستودع، وفي أمر واحد حتى يُوقف الخادم بعده
+python3 -m http.server 8765 >/dev/null 2>&1 & SRV=$!; sleep 1
+node .claude/skills/home-assistant-app/scripts/smoke-test.js http://localhost:8765; kill $SRV
 ```
 اختبار الدخان يستبدل `WebSocket` بخادم Home Assistant وهمي، ثم يفتح كل الصفحات، ويتأكد من ظهور الكيانات، ومن أن الضغط على الإضاءة يرسل `light.turn_on`، ومن عدم وجود أخطاء في الصفحة. يجب أن يطبع `PASS`.
 - لا يوجد Home Assistant حقيقي ولا أجهزة Sonoff في بيئة السحابة. لا تدّعِ أن تغييرًا اختُبر على أجهزة حقيقية، وقل للمستخدم ما الذي يجب أن يجرّبه في البيت.
 - طلبات Open-Meteo قد تُمنع في بيئة السحابة. هذا متوقع والاختبار يتجاهلها.
-- بعد الانتهاء أوقف الخادم المحلي.
+- أوقف الخادم بـ `kill $SRV`. لا تستخدم `pkill -f http.server` لأنه يقتل الأمر نفسه.
 
 ## التوثيق
 - تغيير يراه المستخدم: حدّث قسم المزايا في `README.md`، وجدول الملفات إن أضفت ملفًا.
